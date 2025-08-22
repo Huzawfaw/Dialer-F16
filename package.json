@@ -1,0 +1,23 @@
+{
+    "name": "twilio-dialer-app",
+    "version": "1.0.0",
+    "description": "Twilio Dialer for Connectiv and BooksnPayroll",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js",
+      "dev": "node server.js",
+      "build": "echo 'No build step required'"
+    },
+    "dependencies": {
+      "express": "^4.18.2",
+      "twilio": "^4.19.0",
+      "cors": "^2.8.5",
+      "dotenv": "^16.3.1"
+    },
+    "engines": {
+      "node": ">=18.0.0"
+    },
+    "keywords": ["twilio", "dialer", "voice", "calls"],
+    "author": "Your Name",
+    "license": "MIT"
+  }
