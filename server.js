@@ -75,8 +75,8 @@ app.post('/api/token', (req, res) => {
         const AccessToken = twilio.jwt.AccessToken;
         const VoiceGrant = AccessToken.VoiceGrant;
 
-        const accessToken = new AccessToken(accountSid, process.env.TWILIO_API_KEY || accountSid, process.env.TWILIO_API_SECRET || authToken, {
-            identity: identity
+        const accessToken = new AccessToken(accountSid, accountSid, authToken, {
+        identity: identity
         });
 
         const voiceGrant = new VoiceGrant({
@@ -219,4 +219,5 @@ app.listen(PORT, () => {
     console.log('1. Configure environment variables in Vercel');
     console.log('2. Update Twilio webhook URLs');
     console.log('3. Test your dialer!');
+
 });
