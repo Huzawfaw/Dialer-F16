@@ -191,62 +191,43 @@ app.post('/api/incoming/connectiv', (req, res) => {
 });
 
 // Handle Connectiv menu selection
+// Handle Connectiv menu selection
 app.post('/api/incoming/connectiv/menu', (req, res) => {
     try {
         const { Digits, CallSid } = req.body;
         const twiml = new twilio.twiml.VoiceResponse();
         
-        let extension;
+        let phoneNumber = '+18562307373'; // Connectiv main number
         let extensionName;
         
         switch(Digits) {
             case '1':
-                extension = '101';
                 extensionName = 'Reception';
                 break;
             case '2':
-                extension = '102';
                 extensionName = 'Sales';
                 break;
             case '3':
-                extension = '103';
                 extensionName = 'Support';
                 break;
             case '4':
-                extension = '104';
                 extensionName = 'Manager';
                 break;
             default:
-                extension = '101';
                 extensionName = 'Reception';
         }
         
-        console.log(`📞 Connecting to ${extensionName} (ext ${extension})`);
+        console.log(`📞 Connecting to ${extensionName}`);
         
         twiml.say({ voice: 'alice' }, `Connecting you to ${extensionName}. Please hold.`);
         
-        // Try to connect to extension
-        const availableAgent = findAvailableAgent('connectiv', extension);
+        // Direct dial to the main number (this will ring all connected devices)
+        const dial = twiml.dial({
+            timeout: 30,
+            callerId: req.body.From
+        });
         
-        if (availableAgent) {
-            // Connect to available agent
-            const dial = twiml.dial({
-                timeout: 30,
-                action: '/api/call-status',
-                method: 'POST'
-            });
-            
-            dial.client(availableAgent);
-        } else {
-            // No agents available, leave voicemail or callback
-            twiml.say({ voice: 'alice' }, `Sorry, ${extensionName} is not available right now. Please leave a message after the beep.`);
-            twiml.record({
-                action: '/api/voicemail',
-                method: 'POST',
-                maxLength: 60,
-                finishOnKey: '#'
-            });
-        }
+        dial.number(phoneNumber);
         
         res.type('text/xml');
         res.send(twiml.toString());
@@ -254,7 +235,8 @@ app.post('/api/incoming/connectiv/menu', (req, res) => {
     } catch (error) {
         console.error('❌ Menu selection error:', error);
         const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say({ voice: 'alice' }, 'Connecting you to our main line.');
+        twiml.say({ voice: 'alice' }, 'Please hold while we connect you.');
+        twiml.dial('+18562307373');
         res.type('text/xml');
         res.send(twiml.toString());
     }
@@ -325,53 +307,42 @@ app.post('/api/incoming/booksnpayroll', (req, res) => {
 });
 
 // Handle BooksnPayroll menu selection
+// Handle BooksnPayroll menu selection
 app.post('/api/incoming/booksnpayroll/menu', (req, res) => {
     try {
         const { Digits } = req.body;
         const twiml = new twilio.twiml.VoiceResponse();
         
-        let extension;
+        let phoneNumber = '+18564053544'; // BooksnPayroll main number
         let extensionName;
         
         switch(Digits) {
             case '1':
-                extension = '201';
                 extensionName = 'Accounting';
                 break;
             case '2':
-                extension = '202';
                 extensionName = 'Payroll';
                 break;
             case '3':
-                extension = '203';
                 extensionName = 'Bookkeeping';
                 break;
             case '4':
-                extension = '204';
                 extensionName = 'Manager';
                 break;
             default:
-                extension = '201';
                 extensionName = 'Accounting';
         }
         
-        console.log(`📞 Connecting to ${extensionName} (ext ${extension})`);
+        console.log(`📞 Connecting to ${extensionName}`);
         
         twiml.say({ voice: 'alice' }, `Connecting you to ${extensionName}.`);
         
-        const availableAgent = findAvailableAgent('booksnpayroll', extension);
+        const dial = twiml.dial({
+            timeout: 30,
+            callerId: req.body.From
+        });
         
-        if (availableAgent) {
-            const dial = twiml.dial({ timeout: 30 });
-            dial.client(availableAgent);
-        } else {
-            twiml.say({ voice: 'alice' }, `${extensionName} is not available. Please leave a message.`);
-            twiml.record({
-                action: '/api/voicemail',
-                method: 'POST',
-                maxLength: 60
-            });
-        }
+        dial.number(phoneNumber);
         
         res.type('text/xml');
         res.send(twiml.toString());
@@ -379,7 +350,8 @@ app.post('/api/incoming/booksnpayroll/menu', (req, res) => {
     } catch (error) {
         console.error('❌ Menu selection error:', error);
         const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say({ voice: 'alice' }, 'Connecting you to our main line.');
+        twiml.say({ voice: 'alice' }, 'Please hold while we connect you.');
+        twiml.dial('+18564053544');
         res.type('text/xml');
         res.send(twiml.toString());
     }
@@ -532,3 +504,4 @@ app.listen(port, () => {
 });
 
 module.exports = app;
+
