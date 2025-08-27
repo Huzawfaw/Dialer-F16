@@ -1,11 +1,10 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
+  "functions": {
+    "server.js": {
+      "runtime": "nodejs18.x"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/api/(.*)",
@@ -13,12 +12,16 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/server.js"
+      "dest": "/public/$1"
     }
   ],
-  "functions": {
-    "server.js": {
-      "maxDuration": 30
-    }
+  "env": {
+    "TWILIO_ACCOUNT_SID": "@twilio_account_sid",
+    "TWILIO_AUTH_TOKEN": "@twilio_auth_token",
+    "TWILIO_API_KEY": "@twilio_api_key",
+    "TWILIO_API_SECRET": "@twilio_api_secret",
+    "TWILIO_APP_SID": "@twilio_app_sid",
+    "CONNECTIV_PHONE": "@connectiv_phone",
+    "BOOKSNPAYROLL_PHONE": "@booksnpayroll_phone"
   }
 }
