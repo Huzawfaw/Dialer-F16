@@ -1,7 +1,7 @@
 const express = require('express');
 const twilio = require('twilio');
-const path = require('path');
 const cors = require('cors');
+require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -9,499 +9,200 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// Twilio credentials
+// Twilio configuration
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
-const twimlAppSid = process.env.TWILIO_TWIML_APP_SID;
+const apiKey = process.env.TWILIO_API_KEY;
+const apiSecret = process.env.TWILIO_API_SECRET;
+const appSid = process.env.TWILIO_APP_SID;
 
 const client = twilio(accountSid, authToken);
-const AccessToken = twilio.jwt.AccessToken;
-const VoiceGrant = AccessToken.VoiceGrant;
+const { jwt } = twilio;
+const { AccessToken } = jwt;
+const { VoiceGrant } = AccessToken;
 
-// Store active connections and call states
-const activeConnections = new Map();
-const callStates = new Map();
-
-// Company configurations
-const companies = {
-    connectiv: {
-        name: 'Connectiv',
-        phoneNumber: '+18562307373',
-        extensions: {
-            101: { name: 'Reception', available: true },
-            102: { name: 'Sales', available: true },
-            103: { name: 'Support', available: true },
-            104: { name: 'Manager', available: true }
-        }
-    },
-    booksnpayroll: {
-        name: 'Books and Payroll',
-        phoneNumber: '+18564053544',
-        extensions: {
-            201: { name: 'Accounting', available: true },
-            202: { name: 'Payroll', available: true },
-            203: { name: 'Bookkeeping', available: true },
-            204: { name: 'Manager', available: true }
-        }
-    }
+// Company phone numbers
+const phoneNumbers = {
+    connectiv: process.env.CONNECTIV_PHONE,
+    booksnpayroll: process.env.BOOKSNPAYROLL_PHONE
 };
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'healthy', 
-        timestamp: new Date().toISOString(),
-        activeConnections: activeConnections.size,
-        callStates: callStates.size
-    });
-});
-
-// Generate access token for Twilio Device
+// Generate access token
 app.post('/api/token', (req, res) => {
     try {
         const { identity, company } = req.body;
-        
+
+        console.log('🔑 Token request:', { identity, company });
+
+        // Validate required parameters
         if (!identity || !company) {
-            return res.status(400).json({ error: 'Identity and company are required' });
+            return res.status(400).json({ 
+                error: 'Missing identity or company' 
+            });
         }
 
-        if (!companies[company]) {
-            return res.status(400).json({ error: 'Invalid company' });
+        // Validate environment variables
+        if (!accountSid || !apiKey || !apiSecret || !appSid) {
+            console.error('❌ Missing Twilio credentials');
+            return res.status(500).json({ 
+                error: 'Server configuration error' 
+            });
         }
 
         // Create access token
-        const accessToken = new AccessToken(accountSid, accountSid, authToken, {
-            identity: identity,
-            ttl: 3600 // 1 hour
-        });
+        const accessToken = new AccessToken(
+            accountSid,
+            apiKey,
+            apiSecret,
+            {
+                identity: identity,
+                ttl: 3600 // 1 hour
+            }
+        );
 
         // Create voice grant
         const voiceGrant = new VoiceGrant({
-            outgoingApplicationSid: twimlAppSid,
+            outgoingApplicationSid: appSid,
             incomingAllow: true
         });
 
+        // Add grant to token
         accessToken.addGrant(voiceGrant);
 
-        // Store connection info
-        activeConnections.set(identity, {
-            company: company,
-            extension: identity.replace('ext_', ''),
-            connectedAt: new Date(),
-            available: true
-        });
+        // Generate JWT
+        const token = accessToken.toJwt();
 
-        console.log(`✅ Token generated for ${identity} (${company})`);
+        console.log('✅ Token generated for:', identity);
 
         res.json({
-            token: accessToken.toJwt(),
+            token: token,
             identity: identity,
             company: company
         });
 
     } catch (error) {
         console.error('❌ Token generation error:', error);
-        res.status(500).json({ error: 'Failed to generate token' });
+        res.status(500).json({ 
+            error: 'Failed to generate token',
+            details: error.message 
+        });
     }
 });
 
-// Handle outbound calls from dialer
+// Voice webhook - handles outgoing calls
 app.post('/api/voice', (req, res) => {
     try {
-        console.log('📞 Outbound call request:', req.body);
-        
         const { To, From } = req.body;
-        const callerIdentity = From || req.body.identity;
-        
+        console.log('📞 Voice webhook:', { To, From });
+
         const twiml = new twilio.twiml.VoiceResponse();
-        
+
         if (To) {
-            // Direct dial to external number
-            console.log(`📞 Dialing ${To} from ${callerIdentity}`);
-            
-            const dial = twiml.dial({
-                callerId: getCallerIdForIdentity(callerIdentity),
-                record: 'record-from-answer',
-                recordingStatusCallback: '/api/recording-status'
-            });
-            
-            dial.number(To);
-            
+            // Outgoing call
+            console.log('📤 Outgoing call to:', To);
+            twiml.dial({
+                callerId: From
+            }, To);
         } else {
-            // No destination provided
-            twiml.say({ voice: 'alice' }, 'Please specify a number to dial.');
+            // Fallback
+            twiml.say('Hello from Twilio');
         }
 
         res.type('text/xml');
         res.send(twiml.toString());
-        
+
     } catch (error) {
-        console.error('❌ Outbound call error:', error);
+        console.error('❌ Voice webhook error:', error);
         const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say({ voice: 'alice' }, 'Sorry, there was an error processing your call.');
+        twiml.say('Sorry, there was an error processing your call.');
         res.type('text/xml');
         res.send(twiml.toString());
     }
 });
 
-// Handle incoming calls for Connectiv
-app.post('/api/incoming/connectiv', (req, res) => {
+// Incoming call webhook
+app.post('/api/incoming', (req, res) => {
     try {
-        console.log('📞 Incoming call for Connectiv:', req.body);
-        
-        const { From, CallSid } = req.body;
-        const twiml = new twilio.twiml.VoiceResponse();
-        
-        // Store call state
-        callStates.set(CallSid, {
-            from: From,
-            company: 'connectiv',
-            startTime: new Date(),
-            status: 'incoming'
-        });
-        
-        // Create menu for caller
-        const gather = twiml.gather({
-            numDigits: 1,
-            action: '/api/incoming/connectiv/menu',
-            method: 'POST',
-            timeout: 10
-        });
-        
-        gather.say({ 
-            voice: 'alice' 
-        }, 'Hello! You have reached Connectiv. Press 1 for Reception, Press 2 for Sales, Press 3 for Support, or Press 4 for Manager. Or stay on the line to be connected to Reception.');
-        
-        // Default action if no input
-        twiml.redirect('/api/incoming/connectiv/default');
-        
-        res.type('text/xml');
-        res.send(twiml.toString());
-        
-    } catch (error) {
-        console.error('❌ Incoming call error:', error);
-        const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say({ voice: 'alice' }, 'Hello, thank you for calling Connectiv.');
-        res.type('text/xml');
-        res.send(twiml.toString());
-    }
-});
+        const { From, To } = req.body;
+        console.log('📞 Incoming call:', { From, To });
 
-// Handle Connectiv menu selection
-// Handle Connectiv menu selection
-app.post('/api/incoming/connectiv/menu', (req, res) => {
-    try {
-        const { Digits, CallSid } = req.body;
         const twiml = new twilio.twiml.VoiceResponse();
-        
-        let phoneNumber = '+18562307373'; // Connectiv main number
-        let extensionName;
-        
-        switch(Digits) {
-            case '1':
-                extensionName = 'Reception';
-                break;
-            case '2':
-                extensionName = 'Sales';
-                break;
-            case '3':
-                extensionName = 'Support';
-                break;
-            case '4':
-                extensionName = 'Manager';
-                break;
-            default:
-                extensionName = 'Reception';
+
+        // Determine company based on called number
+        let company = 'unknown';
+        if (To === phoneNumbers.connectiv) {
+            company = 'connectiv';
+        } else if (To === phoneNumbers.booksnpayroll) {
+            company = 'booksnpayroll';
         }
-        
-        console.log(`📞 Connecting to ${extensionName}`);
-        
-        twiml.say({ voice: 'alice' }, `Connecting you to ${extensionName}. Please hold.`);
-        
-        // Direct dial to the main number (this will ring all connected devices)
+
+        console.log('🏢 Company identified:', company);
+
+        // Route to available agents
         const dial = twiml.dial({
             timeout: 30,
-            callerId: req.body.From
+            record: 'record-from-ringing'
         });
-        
-        dial.number(phoneNumber);
-        
-        res.type('text/xml');
-        res.send(twiml.toString());
-        
-    } catch (error) {
-        console.error('❌ Menu selection error:', error);
-        const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say({ voice: 'alice' }, 'Please hold while we connect you.');
-        twiml.dial('+18562307373');
-        res.type('text/xml');
-        res.send(twiml.toString());
-    }
-});
 
-// Handle Connectiv default (no menu selection)
-app.post('/api/incoming/connectiv/default', (req, res) => {
-    const twiml = new twilio.twiml.VoiceResponse();
-    
-    twiml.say({ voice: 'alice' }, 'Connecting you to Reception.');
-    
-    const availableAgent = findAvailableAgent('connectiv', '101');
-    
-    if (availableAgent) {
-        const dial = twiml.dial({ timeout: 30 });
-        dial.client(availableAgent);
-    } else {
-        twiml.say({ voice: 'alice' }, 'All agents are busy. Please leave a message.');
-        twiml.record({
-            action: '/api/voicemail',
-            method: 'POST',
-            maxLength: 60
-        });
-    }
-    
-    res.type('text/xml');
-    res.send(twiml.toString());
-});
-
-// Handle incoming calls for BooksnPayroll
-app.post('/api/incoming/booksnpayroll', (req, res) => {
-    try {
-        console.log('📞 Incoming call for BooksnPayroll:', req.body);
-        
-        const { From, CallSid } = req.body;
-        const twiml = new twilio.twiml.VoiceResponse();
-        
-        callStates.set(CallSid, {
-            from: From,
-            company: 'booksnpayroll',
-            startTime: new Date(),
-            status: 'incoming'
-        });
-        
-        const gather = twiml.gather({
-            numDigits: 1,
-            action: '/api/incoming/booksnpayroll/menu',
-            method: 'POST',
-            timeout: 10
-        });
-        
-        gather.say({ 
-            voice: 'alice' 
-        }, 'Hello! You have reached Books and Payroll. Press 1 for Accounting, Press 2 for Payroll, Press 3 for Bookkeeping, or Press 4 for Manager.');
-        
-        twiml.redirect('/api/incoming/booksnpayroll/default');
-        
-        res.type('text/xml');
-        res.send(twiml.toString());
-        
-    } catch (error) {
-        console.error('❌ Incoming call error:', error);
-        const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say({ voice: 'alice' }, 'Hello, thank you for calling Books and Payroll.');
-        res.type('text/xml');
-        res.send(twiml.toString());
-    }
-});
-
-// Handle BooksnPayroll menu selection
-// Handle BooksnPayroll menu selection
-app.post('/api/incoming/booksnpayroll/menu', (req, res) => {
-    try {
-        const { Digits } = req.body;
-        const twiml = new twilio.twiml.VoiceResponse();
-        
-        let phoneNumber = '+18564053544'; // BooksnPayroll main number
-        let extensionName;
-        
-        switch(Digits) {
-            case '1':
-                extensionName = 'Accounting';
-                break;
-            case '2':
-                extensionName = 'Payroll';
-                break;
-            case '3':
-                extensionName = 'Bookkeeping';
-                break;
-            case '4':
-                extensionName = 'Manager';
-                break;
-            default:
-                extensionName = 'Accounting';
+        // Try to connect to available extensions
+        if (company === 'connectiv') {
+            dial.client('ext_101'); // Reception
+        } else if (company === 'booksnpayroll') {
+            dial.client('ext_201'); // Accounting
+        } else {
+            // Fallback
+            twiml.say('Thank you for calling. Please hold while we connect you.');
+            dial.client('ext_101');
         }
-        
-        console.log(`📞 Connecting to ${extensionName}`);
-        
-        twiml.say({ voice: 'alice' }, `Connecting you to ${extensionName}.`);
-        
-        const dial = twiml.dial({
-            timeout: 30,
-            callerId: req.body.From
-        });
-        
-        dial.number(phoneNumber);
-        
+
         res.type('text/xml');
         res.send(twiml.toString());
-        
+
     } catch (error) {
-        console.error('❌ Menu selection error:', error);
+        console.error('❌ Incoming webhook error:', error);
         const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say({ voice: 'alice' }, 'Please hold while we connect you.');
-        twiml.dial('+18564053544');
+        twiml.say('Sorry, we cannot connect you at the moment. Please try again later.');
         res.type('text/xml');
         res.send(twiml.toString());
     }
 });
 
-// Handle BooksnPayroll default
-app.post('/api/incoming/booksnpayroll/default', (req, res) => {
-    const twiml = new twilio.twiml.VoiceResponse();
-    
-    twiml.say({ voice: 'alice' }, 'Connecting you to Accounting.');
-    
-    const availableAgent = findAvailableAgent('booksnpayroll', '201');
-    
-    if (availableAgent) {
-        const dial = twiml.dial({ timeout: 30 });
-        dial.client(availableAgent);
-    } else {
-        twiml.say({ voice: 'alice' }, 'All agents are busy. Please leave a message.');
-        twiml.record({
-            action: '/api/voicemail',
-            method: 'POST',
-            maxLength: 60
-        });
-    }
-    
-    res.type('text/xml');
-    res.send(twiml.toString());
-});
-
-// Handle call status updates
-app.post('/api/call-status', (req, res) => {
-    console.log('📊 Call status update:', req.body);
-    
-    const { CallSid, CallStatus, Duration } = req.body;
-    
-    if (callStates.has(CallSid)) {
-        const callState = callStates.get(CallSid);
-        callState.status = CallStatus;
-        callState.duration = Duration;
-        callState.endTime = new Date();
-        
-        console.log(`📊 Call ${CallSid} status: ${CallStatus}, Duration: ${Duration}s`);
-    }
-    
-    res.status(200).send('OK');
-});
-
-// Handle voicemail recordings
-app.post('/api/voicemail', (req, res) => {
-    console.log('📧 Voicemail received:', req.body);
-    
-    const twiml = new twilio.twiml.VoiceResponse();
-    twiml.say({ voice: 'alice' }, 'Thank you for your message. We will get back to you soon. Goodbye.');
-    
-    res.type('text/xml');
-    res.send(twiml.toString());
-});
-
-// Handle recording status
-app.post('/api/recording-status', (req, res) => {
-    console.log('🎙️ Recording status:', req.body);
-    res.status(200).send('OK');
-});
-
-// Get company extensions
-app.get('/api/extensions/:company', (req, res) => {
-    const { company } = req.params;
-    
-    if (!companies[company]) {
-        return res.status(404).json({ error: 'Company not found' });
-    }
-    
-    res.json({
-        company: companies[company].name,
-        extensions: companies[company].extensions
+// Health check
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        env: {
+            hasAccountSid: !!accountSid,
+            hasAuthToken: !!authToken,
+            hasApiKey: !!apiKey,
+            hasApiSecret: !!apiSecret,
+            hasAppSid: !!appSid
+        }
     });
 });
 
-// Update extension availability
-app.post('/api/extensions/:company/:extension/status', (req, res) => {
-    const { company, extension } = req.params;
-    const { available } = req.body;
-    
-    if (!companies[company] || !companies[company].extensions[extension]) {
-        return res.status(404).json({ error: 'Extension not found' });
-    }
-    
-    companies[company].extensions[extension].available = available;
-    
-    res.json({
-        extension: extension,
-        available: available
+// Test endpoint
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        message: 'Twilio Dialer API is running',
+        timestamp: new Date().toISOString()
     });
 });
 
-// Get active connections
-app.get('/api/connections', (req, res) => {
-    const connections = Array.from(activeConnections.entries()).map(([identity, data]) => ({
-        identity,
-        ...data
-    }));
-    
-    res.json({ connections });
-});
-
-// Helper functions
-function findAvailableAgent(company, preferredExtension) {
-    // First, try to find someone logged into the preferred extension
-    for (const [identity, connection] of activeConnections) {
-        if (connection.company === company && 
-            connection.extension === preferredExtension && 
-            connection.available) {
-            return identity;
-        }
-    }
-    
-    // If no one is on the preferred extension, find any available agent for this company
-    for (const [identity, connection] of activeConnections) {
-        if (connection.company === company && connection.available) {
-            return identity;
-        }
-    }
-    
-    return null;
-}
-
-function getCallerIdForIdentity(identity) {
-    const connection = activeConnections.get(identity);
-    if (connection) {
-        return companies[connection.company].phoneNumber;
-    }
-    return '+18562307373'; // Default
-}
-
-// Cleanup inactive connections periodically
-setInterval(() => {
-    const now = new Date();
-    for (const [identity, connection] of activeConnections) {
-        const timeDiff = now - connection.connectedAt;
-        if (timeDiff > 4 * 60 * 60 * 1000) { // 4 hours
-            console.log(`🧹 Cleaning up inactive connection: ${identity}`);
-            activeConnections.delete(identity);
-        }
-    }
-}, 30 * 60 * 1000); // Check every 30 minutes
-
+// Start server
 app.listen(port, () => {
     console.log(`🚀 Twilio Dialer Server running on port ${port}`);
-    console.log(`📞 Companies configured: ${Object.keys(companies).join(', ')}`);
+    console.log('📋 Environment check:');
+    console.log('  - Account SID:', accountSid ? '✅' : '❌');
+    console.log('  - Auth Token:', authToken ? '✅' : '❌');
+    console.log('  - API Key:', apiKey ? '✅' : '❌');
+    console.log('  - API Secret:', apiSecret ? '✅' : '❌');
+    console.log('  - App SID:', appSid ? '✅' : '❌');
+    console.log('  - Connectiv Phone:', phoneNumbers.connectiv || '❌');
+    console.log('  - Books&Payroll Phone:', phoneNumbers.booksnpayroll || '❌');
 });
 
 module.exports = app;
-
