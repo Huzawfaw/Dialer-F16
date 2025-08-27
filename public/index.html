@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Twilio Dialer - SDK 2.x</title>
+    <title>Twilio Dialer</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         * {
@@ -19,6 +19,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
 
         .dialer-container {
@@ -62,13 +63,20 @@
             font-size: 16px;
             background: white;
             color: #333;
+            cursor: pointer;
+        }
+
+        .company-selector select:focus {
+            outline: none;
+            border-color: #667eea;
         }
 
         .status {
-            padding: 10px;
+            padding: 12px;
             border-radius: 10px;
             margin-bottom: 20px;
             font-weight: 500;
+            font-size: 14px;
         }
 
         .status.connecting {
@@ -110,19 +118,21 @@
         }
 
         .extension-btn {
-            padding: 12px;
+            padding: 12px 8px;
             border: 2px solid #e1e5e9;
             border-radius: 10px;
             background: white;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
+            text-align: center;
         }
 
         .extension-btn:hover {
             border-color: #667eea;
             background: #f0f2ff;
+            transform: translateY(-1px);
         }
 
         .extension-btn.active {
@@ -145,8 +155,41 @@
             font-size: 16px;
         }
 
+        .phone-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
         .call-btn {
             background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 80px;
+        }
+
+        .call-btn:hover:not(:disabled) {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .call-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .hangup-btn {
+            background: #dc3545;
             color: white;
             border: none;
             padding: 12px 20px;
@@ -160,25 +203,9 @@
             gap: 8px;
         }
 
-        .call-btn:hover {
-            background: #218838;
-        }
-
-        .call-btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
-
-        .hangup-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            margin-left: 10px;
+        .hangup-btn:hover {
+            background: #c82333;
+            transform: translateY(-1px);
         }
 
         .call-controls {
@@ -188,7 +215,7 @@
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
 
         .call-info {
@@ -201,7 +228,43 @@
 
         .call-info h4 {
             color: #1976d2;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .call-info p {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        /* Responsive design */
+        @media (max-width: 480px) {
+            .dialer-container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .extension-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .phone-input {
+                flex-direction: column;
+            }
+            
+            .call-btn {
+                width: 100%;
+            }
+        }
+
+        /* Loading animation */
+        .fa-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -221,7 +284,7 @@
         </div>
 
         <div id="status" class="status connecting">
-            <i class="fas fa-spinner fa-spin"></i> Initializing...
+            <i class="fas fa-spinner fa-spin"></i> Select a company to begin
         </div>
 
         <div id="extensionPanel" class="extension-panel hidden">
@@ -300,6 +363,13 @@
         callBtn.addEventListener('click', makeCall);
         hangupBtn.addEventListener('click', hangupCall);
 
+        // Handle Enter key in phone input
+        phoneNumber.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !callBtn.disabled) {
+                makeCall();
+            }
+        });
+
         function handleCompanyChange() {
             const company = companySelect.value;
             if (company) {
@@ -307,6 +377,7 @@
                 showExtensions(company);
             } else {
                 hideExtensions();
+                updateStatus('connecting', 'Select a company to begin');
             }
         }
 
@@ -325,11 +396,13 @@
             });
             
             extensionPanel.classList.remove('hidden');
+            updateStatus('connecting', 'Select an extension to connect');
         }
 
         function hideExtensions() {
             extensionPanel.classList.add('hidden');
             dialerPanel.classList.add('hidden');
+            callInfo.classList.add('hidden');
         }
 
         async function selectExtension(extension, name) {
@@ -349,7 +422,7 @@
                 dialerPanel.classList.remove('hidden');
             } catch (error) {
                 console.error('Connection failed:', error);
-                updateStatus('error', 'Connection failed');
+                updateStatus('error', 'Connection failed. Please try again.');
             }
         }
 
@@ -373,17 +446,19 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to get access token');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to get access token');
                 }
 
                 const data = await response.json();
-                console.log('✅ Token received');
+                console.log('✅ Token received for', currentIdentity);
 
                 // Create device with SDK 2.x syntax
                 const { Device } = Twilio.Voice;
                 device = new Device(data.token, {
                     logLevel: 1,
-                    enableRingingState: true
+                    enableRingingState: true,
+                    allowIncomingWhileBusy: true
                 });
 
                 // Set up event handlers
@@ -394,7 +469,7 @@
 
                 device.on('error', function(error) {
                     console.error('❌ Device error:', error);
-                    updateStatus('error', `Error: ${error.message}`);
+                    updateStatus('error', `Error: ${error.message || 'Connection failed'}`);
                 });
 
                 device.on('incoming', function(call) {
@@ -407,12 +482,16 @@
                     connectDevice();
                 });
 
+                device.on('registering', function() {
+                    console.log('🔄 Device registering...');
+                });
+
                 // Register the device
                 await device.register();
 
             } catch (error) {
                 console.error('❌ Device connection failed:', error);
-                updateStatus('error', 'Connection failed');
+                updateStatus('error', 'Connection failed. Check your network.');
                 throw error;
             }
         }
@@ -424,8 +503,14 @@
                 return;
             }
 
+            if (!device) {
+                updateStatus('error', 'Device not connected');
+                return;
+            }
+
             try {
                 updateStatus('connecting', 'Placing call...');
+                callBtn.disabled = true;
                 
                 // Make call with SDK 2.x syntax
                 currentCall = await device.connect({
@@ -433,6 +518,8 @@
                         To: number
                     }
                 });
+
+                console.log('📞 Call initiated to:', number);
 
                 // Set up call event handlers
                 currentCall.on('accept', function() {
@@ -446,6 +533,7 @@
                     hideCallInfo();
                     updateStatus('connected', `Connected as Extension ${currentExtension}`);
                     currentCall = null;
+                    callBtn.disabled = false;
                 });
 
                 currentCall.on('cancel', function() {
@@ -453,11 +541,21 @@
                     hideCallInfo();
                     updateStatus('connected', `Connected as Extension ${currentExtension}`);
                     currentCall = null;
+                    callBtn.disabled = false;
+                });
+
+                currentCall.on('reject', function() {
+                    console.log('📞 Call rejected');
+                    hideCallInfo();
+                    updateStatus('connected', `Connected as Extension ${currentExtension}`);
+                    currentCall = null;
+                    callBtn.disabled = false;
                 });
 
             } catch (error) {
                 console.error('❌ Call failed:', error);
-                updateStatus('error', 'Call failed');
+                updateStatus('error', 'Call failed. Please try again.');
+                callBtn.disabled = false;
             }
         }
 
@@ -475,6 +573,7 @@
                 call.accept();
                 currentCall = call;
                 showCallInfo(from);
+                updateStatus('connected', 'Incoming call connected');
                 
                 call.on('disconnect', function() {
                     hideCallInfo();
@@ -519,6 +618,15 @@
         // Initialize
         console.log('🚀 Twilio Dialer App Starting (SDK 2.x)...');
         updateStatus('connecting', 'Select a company to begin');
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                console.log('📱 Page hidden');
+            } else {
+                console.log('📱 Page visible');
+            }
+        });
     </script>
 </body>
 </html>
