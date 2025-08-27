@@ -3,612 +3,522 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Twilio Dialer - Production</title>
-    
-    <!-- Twilio Client SDK -->
-    <script src="https://sdk.twilio.com/js/client/releases/2.15.0/twilio.min.js"></script>
-    
-    <!-- Tailwind CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
+    <title>Twilio Dialer - SDK 2.x</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
+        * {
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        .dialer-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
         }
-        
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 10px;
         }
-        
-        .status-connected { background-color: #10b981; }
-        .status-connecting { background-color: #f59e0b; }
-        .status-error { background-color: #ef4444; }
-        .status-disconnected { background-color: #6b7280; }
-        
-        .call-active {
-            animation: pulse 2s infinite;
+
+        .header i {
+            color: #667eea;
+            font-size: 24px;
         }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .company-selector {
+            margin-bottom: 20px;
+        }
+
+        .company-selector select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            color: #333;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .extension-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .extension-panel h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .extension-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .extension-btn {
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .extension-btn:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+
+        .extension-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .phone-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .phone-input input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        .call-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .call-btn:hover {
+            background: #218838;
+        }
+
+        .call-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .hangup-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .call-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .call-info {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .call-info h4 {
+            color: #1976d2;
+            margin-bottom: 5px;
         }
     </style>
 </head>
-<body class="bg-gray-100">
-    <!-- Header -->
-    <header class="bg-white shadow-sm border-b px-6 py-4">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-4">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-phone text-2xl text-blue-500"></i>
-                    <h1 class="text-2xl font-bold text-gray-900">Twilio Dialer</h1>
-                    <span id="loading-spinner" class="spinner" style="display: none;"></span>
-                </div>
-                
-                <!-- Company Selector -->
-                <select id="company-select" class="px-3 py-2 rounded-lg border border-gray-300 bg-white">
-                    <option value="connectiv">Connectiv</option>
-                    <option value="booksnpayroll">BooksnPayroll</option>
-                </select>
+<body>
+    <div class="dialer-container">
+        <div class="header">
+            <i class="fas fa-phone"></i>
+            <h1>Twilio Dialer</h1>
+        </div>
 
-                <!-- Connection Status -->
-                <div class="flex items-center space-x-2">
-                    <span id="status-dot" class="status-dot status-disconnected"></span>
-                    <span id="status-text" class="text-sm text-gray-600">Disconnected</span>
-                </div>
+        <div class="company-selector">
+            <select id="companySelect">
+                <option value="">Select Company</option>
+                <option value="connectiv">Connectiv</option>
+                <option value="booksnpayroll">Books & Payroll</option>
+            </select>
+        </div>
+
+        <div id="status" class="status connecting">
+            <i class="fas fa-spinner fa-spin"></i> Initializing...
+        </div>
+
+        <div id="extensionPanel" class="extension-panel hidden">
+            <h3 id="companyTitle">Select Extension</h3>
+            <div id="extensionGrid" class="extension-grid">
+                <!-- Extensions will be populated here -->
             </div>
+        </div>
 
-            <div class="flex items-center space-x-4">
-                <span id="environment-badge" class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                    Production
-                </span>
-                <button id="reset-connection" class="px-3 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600">
-                    Reset Connection
+        <div id="dialerPanel" class="hidden">
+            <div class="phone-input">
+                <input type="tel" id="phoneNumber" placeholder="Enter phone number" />
+                <button id="callBtn" class="call-btn">
+                    <i class="fas fa-phone"></i> Call
                 </button>
             </div>
         </div>
-    </header>
 
-    <main class="p-6">
-        <div class="max-w-6xl mx-auto">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Dialer Section -->
-                <div class="lg:col-span-2">
-                    <div class="bg-white border rounded-xl p-6 shadow-sm">
-                        <h2 class="text-xl font-semibold mb-4">
-                            <span id="company-name">Connectiv</span> Dialer
-                        </h2>
-                        
-                        <!-- Extension Selector -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium mb-2">Select Extension</label>
-                            <select id="extension-select" class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white">
-                                <option value="">Choose Extension</option>
-                            </select>
-                        </div>
-
-                        <!-- Number Display -->
-                        <div class="mb-4 p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
-                            <input
-                                type="text"
-                                id="dial-number"
-                                placeholder="Enter phone number"
-                                class="w-full text-2xl text-center bg-transparent outline-none text-gray-900"
-                            />
-                        </div>
-
-                        <!-- Keypad -->
-                        <div class="grid grid-cols-3 gap-3 mb-4">
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="1">1</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="2">2</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="3">3</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="4">4</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="5">5</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="6">6</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="7">7</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="8">8</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="9">9</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="*">*</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="0">0</button>
-                            <button class="keypad-btn p-4 text-xl font-semibold rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors" data-digit="#">#</button>
-                        </div>
-
-                        <!-- Call Controls -->
-                        <div class="flex space-x-3">
-                            <button
-                                id="call-btn"
-                                class="flex-1 py-3 rounded-lg font-semibold bg-gray-400 cursor-not-allowed text-white"
-                                disabled
-                            >
-                                <i class="fas fa-phone mr-2"></i>
-                                Call
-                            </button>
-                            
-                            <button
-                                id="clear-btn"
-                                class="px-4 py-3 rounded-lg bg-gray-200 hover:bg-gray-300"
-                            >
-                                <i class="fas fa-backspace"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Status & Info Section -->
-                <div class="space-y-6">
-                    <!-- Connection Info -->
-                    <div class="bg-white border rounded-xl p-6 shadow-sm">
-                        <h3 class="text-lg font-semibold mb-4">Connection Status</h3>
-                        <div id="connection-info">
-                            <p class="text-gray-600">Select an extension to connect...</p>
-                        </div>
-                        
-                        <!-- Server Info -->
-                        <div class="mt-4 p-3 bg-gray-100 rounded-lg">
-                            <h4 class="font-medium mb-2">System Status:</h4>
-                            <div id="system-info" class="text-sm text-gray-600">
-                                <div>Device: <span id="device-status">Not initialized</span></div>
-                                <div>Server: <span id="server-status">Checking...</span></div>
-                                <div>Environment: <span class="text-green-600 font-medium">Production</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Active Call Status -->
-                    <div id="active-call" class="bg-white border rounded-xl p-6 shadow-sm" style="display: none;">
-                        <h3 class="text-lg font-semibold mb-4 text-green-500">
-                            <i class="fas fa-phone-alt mr-2"></i>
-                            Active Call
-                        </h3>
-                        <div class="text-center">
-                            <div id="call-number" class="text-2xl font-mono mb-2"></div>
-                            <div id="call-duration" class="text-lg text-gray-500 mb-4">Duration: 0:00</div>
-                            <div class="space-y-2">
-                                <button
-                                    id="end-call-btn"
-                                    class="w-full bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold"
-                                >
-                                    <i class="fas fa-phone-slash mr-2"></i>
-                                    End Call
-                                </button>
-                                <button
-                                    id="mute-btn"
-                                    class="w-full bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
-                                >
-                                    <i class="fas fa-microphone-slash mr-2"></i>
-                                    Mute
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Quick Actions -->
-                    <div class="bg-white border rounded-xl p-6 shadow-sm">
-                        <h3 class="text-lg font-semibold mb-4">Quick Actions</h3>
-                        <div class="space-y-2">
-                            <button class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-sm">
-                                <i class="fas fa-history mr-2 text-gray-400"></i>
-                                Call History
-                            </button>
-                            <button class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-sm">
-                                <i class="fas fa-address-book mr-2 text-gray-400"></i>
-                                Contacts
-                            </button>
-                            <button class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-sm">
-                                <i class="fas fa-cog mr-2 text-gray-400"></i>
-                                Settings
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        <div id="callInfo" class="call-info hidden">
+            <h4>Active Call</h4>
+            <p id="callDetails">Connected to: <span id="callNumber"></span></p>
+            <div class="call-controls">
+                <button id="hangupBtn" class="hangup-btn">
+                    <i class="fas fa-phone-slash"></i> Hang Up
+                </button>
             </div>
         </div>
-    </main>
+    </div>
 
+    <!-- Twilio Voice SDK 2.x -->
+    <script src="https://sdk.twilio.com/js/voice/releases/2.12.0/twilio.min.js"></script>
+    
     <script>
-        // Global variables
-        let currentCompany = 'connectiv';
-        let selectedExtension = '';
-        let device = null;
-        let currentCall = null;
-        let isCallActive = false;
-        let callDuration = 0;
-        let callTimer = null;
-        let isConnecting = false;
-        let companies = {};
+        let device;
+        let currentCall;
+        let currentCompany = '';
+        let currentExtension = '';
+        let currentIdentity = '';
+
+        const companies = {
+            connectiv: {
+                name: 'Connectiv',
+                extensions: {
+                    101: 'Reception',
+                    102: 'Sales', 
+                    103: 'Support',
+                    104: 'Manager'
+                }
+            },
+            booksnpayroll: {
+                name: 'Books & Payroll',
+                extensions: {
+                    201: 'Accounting',
+                    202: 'Payroll',
+                    203: 'Bookkeeping', 
+                    204: 'Manager'
+                }
+            }
+        };
 
         // DOM elements
-        const companySelect = document.getElementById('company-select');
-        const extensionSelect = document.getElementById('extension-select');
-        const dialNumber = document.getElementById('dial-number');
-        const callBtn = document.getElementById('call-btn');
-        const clearBtn = document.getElementById('clear-btn');
-        const statusDot = document.getElementById('status-dot');
-        const statusText = document.getElementById('status-text');
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const resetBtn = document.getElementById('reset-connection');
+        const companySelect = document.getElementById('companySelect');
+        const status = document.getElementById('status');
+        const extensionPanel = document.getElementById('extensionPanel');
+        const extensionGrid = document.getElementById('extensionGrid');
+        const companyTitle = document.getElementById('companyTitle');
+        const dialerPanel = document.getElementById('dialerPanel');
+        const phoneNumber = document.getElementById('phoneNumber');
+        const callBtn = document.getElementById('callBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const callInfo = document.getElementById('callInfo');
+        const callNumber = document.getElementById('callNumber');
 
-        // Status elements
-        const deviceStatus = document.getElementById('device-status');
-        const serverStatus = document.getElementById('server-status');
+        // Event listeners
+        companySelect.addEventListener('change', handleCompanyChange);
+        callBtn.addEventListener('click', makeCall);
+        hangupBtn.addEventListener('click', hangupCall);
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Twilio Dialer App Starting (Production)...');
-            
-            // Setup event listeners
-            setupEventListeners();
-            
-            // Load companies and update display
-            loadCompanies();
-            
-            // Check server health
-            checkServerHealth();
-            
-            console.log('✅ App initialized');
-        });
-
-        function setupEventListeners() {
-            // Company selection
-            companySelect.addEventListener('change', function() {
-                currentCompany = this.value;
-                updateCompanyDisplay();
-                resetConnection();
-            });
-
-            // Extension selection
-            extensionSelect.addEventListener('change', function() {
-                selectedExtension = this.value;
-                if (selectedExtension && !isConnecting) {
-                    initializeTwilioDevice();
-                } else if (!selectedExtension) {
-                    resetConnection();
-                }
-            });
-
-            // Reset connection button
-            resetBtn.addEventListener('click', resetConnection);
-
-            // Keypad buttons
-            document.querySelectorAll('.keypad-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    if (!isCallActive) {
-                        const digit = this.getAttribute('data-digit');
-                        dialNumber.value += digit;
-                        updateCallButton();
-                    } else {
-                        // Send DTMF during call
-                        const digit = this.getAttribute('data-digit');
-                        if (currentCall) {
-                            currentCall.sendDigits(digit);
-                        }
-                    }
-                });
-            });
-
-            // Call button
-            callBtn.addEventListener('click', function() {
-                if (isCallActive) {
-                    endCall();
-                } else {
-                    makeCall();
-                }
-            });
-
-            // Clear button
-            clearBtn.addEventListener('click', function() {
-                if (!isCallActive) {
-                    dialNumber.value = '';
-                    updateCallButton();
-                }
-            });
-
-            // Number input
-            dialNumber.addEventListener('input', updateCallButton);
-        }
-
-        async function loadCompanies() {
-            try {
-                const response = await fetch('/api/companies');
-                companies = await response.json();
-                updateCompanyDisplay();
-                updateExtensionOptions();
-            } catch (error) {
-                console.error('❌ Failed to load companies:', error);
-            }
-        }
-
-        function updateCompanyDisplay() {
-            if (companies[currentCompany]) {
-                const companyName = companies[currentCompany].name;
-                document.getElementById('company-name').textContent = companyName;
-                updateExtensionOptions();
-            }
-        }
-
-        function updateExtensionOptions() {
-            extensionSelect.innerHTML = '<option value="">Choose Extension</option>';
-            
-            if (companies[currentCompany] && companies[currentCompany].extensions) {
-                const extensions = companies[currentCompany].extensions;
-                Object.keys(extensions).forEach(ext => {
-                    const option = document.createElement('option');
-                    option.value = ext;
-                    option.textContent = `${ext} - ${extensions[ext].name} (${extensions[ext].department})`;
-                    extensionSelect.appendChild(option);
-                });
-            }
-        }
-
-        function updateCallButton() {
-            const hasNumber = dialNumber.value.trim().length > 0;
-            const hasExtension = selectedExtension !== '';
-            const isConnected = device && device.status() === 'ready';
-            
-            if (isCallActive) {
-                callBtn.disabled = false;
-                callBtn.className = 'flex-1 py-3 rounded-lg font-semibold bg-red-500 hover:bg-red-600 text-white call-active';
-                callBtn.innerHTML = '<i class="fas fa-phone-slash mr-2"></i>End Call';
-            } else if (hasNumber && hasExtension && isConnected && !isConnecting) {
-                callBtn.disabled = false;
-                callBtn.className = 'flex-1 py-3 rounded-lg font-semibold bg-green-500 hover:bg-green-600 text-white';
-                callBtn.innerHTML = '<i class="fas fa-phone mr-2"></i>Call';
+        function handleCompanyChange() {
+            const company = companySelect.value;
+            if (company) {
+                currentCompany = company;
+                showExtensions(company);
             } else {
-                callBtn.disabled = true;
-                callBtn.className = 'flex-1 py-3 rounded-lg font-semibold bg-gray-400 cursor-not-allowed text-white';
-                callBtn.innerHTML = '<i class="fas fa-phone mr-2"></i>Call';
+                hideExtensions();
             }
         }
 
-        function updateConnectionStatus(status, message) {
-            statusDot.className = `status-dot status-${status}`;
-            statusText.textContent = message;
+        function showExtensions(company) {
+            const companyData = companies[company];
+            companyTitle.textContent = `${companyData.name} - Select Extension`;
             
-            const connectionInfo = document.getElementById('connection-info');
-            connectionInfo.innerHTML = `<p class="text-gray-600">${message}</p>`;
+            extensionGrid.innerHTML = '';
             
-            updateCallButton();
+            Object.entries(companyData.extensions).forEach(([ext, name]) => {
+                const btn = document.createElement('button');
+                btn.className = 'extension-btn';
+                btn.textContent = `${ext} - ${name}`;
+                btn.onclick = () => selectExtension(ext, name);
+                extensionGrid.appendChild(btn);
+            });
+            
+            extensionPanel.classList.remove('hidden');
         }
 
-        function updateSystemInfo() {
-            deviceStatus.textContent = device ? device.status() : 'Not initialized';
-            serverStatus.textContent = 'Connected';
+        function hideExtensions() {
+            extensionPanel.classList.add('hidden');
+            dialerPanel.classList.add('hidden');
         }
 
-        async function checkServerHealth() {
+        async function selectExtension(extension, name) {
+            // Update UI
+            document.querySelectorAll('.extension-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            currentExtension = extension;
+            currentIdentity = `ext_${extension}`;
+            
+            updateStatus('connecting', `Connecting to ${name}...`);
+            
             try {
-                const response = await fetch('/api/health');
-                const data = await response.json();
-                serverStatus.textContent = 'Connected';
-                console.log('✅ Server health check:', data);
+                await connectDevice();
+                dialerPanel.classList.remove('hidden');
             } catch (error) {
-                serverStatus.textContent = 'Error';
-                console.error('❌ Server health check failed:', error);
+                console.error('Connection failed:', error);
+                updateStatus('error', 'Connection failed');
             }
         }
 
-        function resetConnection() {
-            console.log('🔄 Resetting connection...');
-            
-            isConnecting = false;
-            
-            if (device) {
-                try {
-                    device.destroy();
-                } catch (error) {
-                    console.log('Device destroy error (expected):', error.message);
-                }
-                device = null;
-            }
-            
-            if (currentCall) {
-                try {
-                    currentCall.disconnect();
-                } catch (error) {
-                    console.log('Call disconnect error (expected):', error.message);
-                }
-                currentCall = null;
-            }
-            
-            isCallActive = false;
-            if (callTimer) {
-                clearInterval(callTimer);
-                callTimer = null;
-            }
-            document.getElementById('active-call').style.display = 'none';
-            dialNumber.value = '';
-            
-            updateConnectionStatus('disconnected', 'Disconnected');
-            loadingSpinner.style.display = 'none';
-            
-            deviceStatus.textContent = 'Reset';
-            
-            console.log('✅ Connection reset complete');
-        }
-
-        async function initializeTwilioDevice() {
-            if (!selectedExtension || isConnecting) return;
-            
+        async function connectDevice() {
             try {
-                isConnecting = true;
-                loadingSpinner.style.display = 'inline-block';
-                updateConnectionStatus('connecting', 'Connecting...');
-                
-                console.log(`🔌 Initializing device for extension ${selectedExtension} (${currentCompany})`);
-                
+                // Destroy existing device
                 if (device) {
                     device.destroy();
-                    device = null;
                 }
-                
+
+                // Get access token
                 const response = await fetch('/api/token', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
-                        identity: `ext_${selectedExtension}`,
+                        identity: currentIdentity,
                         company: currentCompany
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error('Failed to get access token');
                 }
 
                 const data = await response.json();
                 console.log('✅ Token received');
 
-                if (window.Twilio && window.Twilio.Device) {
-                    device = new window.Twilio.Device(data.token);
-                    
-                    device.on('ready', () => {
-                        console.log('✅ Twilio Device Ready');
-                        updateConnectionStatus('connected', 'Connected');
-                        loadingSpinner.style.display = 'none';
-                        isConnecting = false;
-                        updateSystemInfo();
-                    });
+                // Create device with SDK 2.x syntax
+                const { Device } = Twilio.Voice;
+                device = new Device(data.token, {
+                    logLevel: 1,
+                    enableRingingState: true
+                });
 
-                    device.on('error', (error) => {
-                        console.error('❌ Twilio Device Error:', error);
-                        updateConnectionStatus('error', `Error: ${error.message}`);
-                        loadingSpinner.style.display = 'none';
-                        isConnecting = false;
-                        updateSystemInfo();
-                    });
+                // Set up event handlers
+                device.on('registered', function() {
+                    console.log('✅ Device registered');
+                    updateStatus('connected', `Connected as Extension ${currentExtension}`);
+                });
 
-                    device.on('disconnect', () => {
-                        console.log('📞 Call disconnected');
-                        endCall();
-                    });
+                device.on('error', function(error) {
+                    console.error('❌ Device error:', error);
+                    updateStatus('error', `Error: ${error.message}`);
+                });
 
-                    device.on('incoming', (call) => {
-                        console.log('📞 Incoming call:', call.parameters.From);
-                        handleIncomingCall(call);
-                    });
+                device.on('incoming', function(call) {
+                    console.log('📞 Incoming call from:', call.parameters.From);
+                    handleIncomingCall(call);
+                });
 
-                } else {
-                    throw new Error('Twilio Client SDK not loaded');
-                }
-                
+                device.on('tokenWillExpire', function() {
+                    console.log('🔄 Token will expire, refreshing...');
+                    connectDevice();
+                });
+
+                // Register the device
+                await device.register();
+
             } catch (error) {
-                console.error('❌ Device initialization error:', error);
-                updateConnectionStatus('error', `Error: ${error.message}`);
-                loadingSpinner.style.display = 'none';
-                isConnecting = false;
+                console.error('❌ Device connection failed:', error);
+                updateStatus('error', 'Connection failed');
+                throw error;
             }
         }
 
         async function makeCall() {
-            if (!device || !dialNumber.value || !selectedExtension || isCallActive || isConnecting) {
-                console.log('❌ Cannot make call - missing requirements');
+            const number = phoneNumber.value.trim();
+            if (!number) {
+                alert('Please enter a phone number');
                 return;
             }
-            
+
             try {
-                console.log(`📞 Making call to ${dialNumber.value}`);
+                updateStatus('connecting', 'Placing call...');
                 
-                if (device.status() !== 'ready') {
-                    throw new Error('Device not ready. Status: ' + device.status());
-                }
-                
-                const call = await device.connect({
-                    To: dialNumber.value,
-                    From: companies[currentCompany].number,
-                    company: currentCompany
+                // Make call with SDK 2.x syntax
+                currentCall = await device.connect({
+                    params: {
+                        To: number
+                    }
                 });
 
-                startCall(call, dialNumber.value);
-                
+                // Set up call event handlers
+                currentCall.on('accept', function() {
+                    console.log('✅ Call accepted');
+                    showCallInfo(number);
+                    updateStatus('connected', 'Call in progress');
+                });
+
+                currentCall.on('disconnect', function() {
+                    console.log('📞 Call ended');
+                    hideCallInfo();
+                    updateStatus('connected', `Connected as Extension ${currentExtension}`);
+                    currentCall = null;
+                });
+
+                currentCall.on('cancel', function() {
+                    console.log('📞 Call cancelled');
+                    hideCallInfo();
+                    updateStatus('connected', `Connected as Extension ${currentExtension}`);
+                    currentCall = null;
+                });
+
             } catch (error) {
-                console.error('❌ Call error:', error);
-                alert('Failed to make call: ' + error.message);
-                
-                if (error.message.includes('Connection is already active')) {
-                    resetConnection();
-                    setTimeout(() => {
-                        if (selectedExtension) {
-                            initializeTwilioDevice();
-                        }
-                    }, 2000);
-                }
+                console.error('❌ Call failed:', error);
+                updateStatus('error', 'Call failed');
             }
         }
 
-        function startCall(call, number) {
-            currentCall = call;
-            isCallActive = true;
-            callDuration = 0;
-            
-            document.getElementById('call-number').textContent = number;
-            document.getElementById('active-call').style.display = 'block';
-            
-            callTimer = setInterval(() => {
-                callDuration++;
-                const mins = Math.floor(callDuration / 60);
-                const secs = callDuration % 60;
-                document.getElementById('call-duration').textContent = 
-                    `Duration: ${mins}:${secs.toString().padStart(2, '0')}`;
-            }, 1000);
-            
-            updateCallButton();
-            
-            console.log('✅ Call started');
-        }
-
-        function endCall() {
+        function hangupCall() {
             if (currentCall) {
                 currentCall.disconnect();
             }
-            
-            currentCall = null;
-            isCallActive = false;
-            
-            if (callTimer) {
-                clearInterval(callTimer);
-                callTimer = null;
-            }
-            
-            document.getElementById('active-call').style.display = 'none';
-            dialNumber.value = '';
-            
-            updateCallButton();
-            
-            console.log('✅ Call ended');
         }
 
         function handleIncomingCall(call) {
-            // Auto-accept incoming calls for now
-            call.accept();
-            startCall(call, call.parameters.From);
+            const from = call.parameters.From;
+            const accept = confirm(`Incoming call from ${from}. Accept?`);
+            
+            if (accept) {
+                call.accept();
+                currentCall = call;
+                showCallInfo(from);
+                
+                call.on('disconnect', function() {
+                    hideCallInfo();
+                    updateStatus('connected', `Connected as Extension ${currentExtension}`);
+                    currentCall = null;
+                });
+            } else {
+                call.reject();
+            }
         }
+
+        function showCallInfo(number) {
+            callNumber.textContent = number;
+            callInfo.classList.remove('hidden');
+            callBtn.disabled = true;
+        }
+
+        function hideCallInfo() {
+            callInfo.classList.add('hidden');
+            callBtn.disabled = false;
+        }
+
+        function updateStatus(type, message) {
+            status.className = `status ${type}`;
+            
+            let icon = '';
+            switch(type) {
+                case 'connecting':
+                    icon = '<i class="fas fa-spinner fa-spin"></i>';
+                    break;
+                case 'connected':
+                    icon = '<i class="fas fa-check-circle"></i>';
+                    break;
+                case 'error':
+                    icon = '<i class="fas fa-exclamation-triangle"></i>';
+                    break;
+            }
+            
+            status.innerHTML = `${icon} ${message}`;
+        }
+
+        // Initialize
+        console.log('🚀 Twilio Dialer App Starting (SDK 2.x)...');
+        updateStatus('connecting', 'Select a company to begin');
     </script>
 </body>
-
 </html>
-
-
-
